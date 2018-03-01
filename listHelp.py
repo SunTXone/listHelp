@@ -19,6 +19,17 @@ Created on Tue Feb 13 08:27:51 2018
     
 @author: ccds_stx
 """
+def format_typestr(type_string):
+    """
+    2018-3-1,增加本函数，用于将类型名称字符串进行格式化，去除多余内容，仅留下类型名称。
+    注意：实参必须时字符串，本函数内不进行类型校验。
+    """
+    import re
+    type_re = re.compile(r'\'.*\'')
+    type_match = type_re.search(type_string)
+    type_name = type_match.group().replace("'",'')
+    return type_name
+
 def get_help(module):
     """
     本函数通过给定的模块名，获得包括模块内部项目名称、类型、内置帮助信息等内容，并
@@ -33,9 +44,12 @@ def get_help(module):
     for i in range(0,len(name_list)):
         x = name_list[i] # 变量x保存名称
         y = str(type(getattr(module,x))) #变量y保存类型
+        #2018-3-1 增加格式化类型名称处理
+        y = format_typestr(y)
         z = getattr(module,x).__doc__ #变量z保存帮助内容
         content.append((x,y,z))
     return tuple(content)
+
 def write_help(module_name,in_help,filename):
     """
     本函数将获得模块内容帮助内容写入指定Excel文件中。
