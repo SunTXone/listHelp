@@ -1,0 +1,2 @@
+# listHelp
+利用Python提供的内置功能和openpyxl库，将python中的模块的内容帮助导入到Excel文件中，以利用浏览。
