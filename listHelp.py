@@ -27,7 +27,8 @@ def format_typestr(type_string):
     import re
     type_re = re.compile(r'\'.*\'')
     type_match = type_re.search(type_string)
-    type_name = type_match.group().replace("'",'')
+    #type_name = type_match.group().replace("'",'')
+    type_name = type_match.group()[1:-2] #使用字符串切片方式 将两端的“'”删除
     return type_name
 
 def get_help(module):
