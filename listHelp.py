@@ -17,7 +17,8 @@ Created on Tue Feb 13 08:27:51 2018
     3.help_to_excel(module,filename):调用get_help、write_help，将module模块的帮助
     写入filename文件（Excel格式）已module命名的表中。
 	2018-3-9，修订，扩展提取帮助范围，不限于module。
-
+	2018-3-10，今天，在使用中发现，python中有部分特殊类型，如‘function’、‘_frozen_importlib.ModuleSpec’
+    等，他们的实例在使用str(type(module))方式提取的名称仍然是类型名，而不是包含在模块中的索引项名。？？
 @author: ccds_stx
 """
 
@@ -26,29 +27,40 @@ def get_module_name(module):
        #2018-3-9,增加本函数用于处理传递过来的模块名，或类型变量
        #功能：判断传入参数的类型，如果是模块（module）、类型（type）则保留原变量，如果是实例则转换为对应的类型（type）
        #输入：module，传入的模块、类型及实例。
-       #返回值：一个元组（列表），含3个成员：0.类型变量，即模块名或类型名；1.名称，模块名、类型名的字符串；2.传入对象类型，module、type或other。
+       #返回值：一个元组（列表），含3个成员：0.类型变量，即模块、类型；1.名称，模块名、类型名的字符串；2.传入对象类型，module、type或other。
     """
+    #提取传入参数的类型，是“module”、“type”或其他
     import re
-    module_type_str = str(type(module))
-    re_name = re.compile(r'\'.*?\'') #设置提取模块名（类名）等模式
+    module_type_str = str(type(module))  #将传入参数的类型字符串化
+    re_name = re.compile(r'\'.*?\'')     #设置提取模块名（类名）等模式
     re_result = re.search(re_name,module_type_str)
-    temp_type = re_result.group()[1:-1]
+    temp_type = re_result.group()[1:-1]  #将得到的参数类型名称存入变量“temp_type”
+    #根据参数类型，处理生成返回结果
     if temp_type == 'module':#传入的是模块
         #提取真实模块名
         re_result = re.search(re_name,str(module))
         module_name = re_result.group()[1:-1]
-
     elif temp_type == 'type':#传入的是类型
         #提取真实类型名
         re_result = re.search(re_name,str(module))
         module_name = re_result.group()[1:-1]
     else: #传入参数是实例
-        #转换传入参数为类型
+        #下面处理顺序不能更改
+        #1.先生成实例的显示名，可能为“真实类型名->实例名”或“类型.实例名”
+        """
+         此处比较复杂，当类型为“实例”时，有些实例的类型名称表现形式为在模块（类）内部，具有较清晰的层级结构的命令规则，且没有“__name__”属性，
+         如openpyxl模块中的“openpyxl.workbook.workbook.Workbook”。还有一些则只有简单的类型名称，而没有在模块（类）内部的层次体现，此情况，其中一些它的“
+         __name__”包含了他在模块（类）内的名称，还有一些连“__name__”属性也没有。
+         目前处理方式，先尝试按“简单类型+实例.__name__”处理，报错（AttributeError:没有__name__属性）时，直接采用类型名称字符串作显示名。
+        """
+        try:
+            module_name =   temp_type+'->'+module.__name__  #补充实例名,按“真实类型名->实例名”格式处理
+        except AttributeError:   #实例没有“__name__”属性，直接使用实例类型
+            re_result = re.search(re_name,str(type(module)))
+            module_name = re_result.group()[1:-1]
+        #2.转换传入参数为类型 ,必须放在提取真实类型名后面
         module = type(module)
-        #提取真实类型名
-        re_result = re.search(re_name,str(module))
-        module_name = re_result.group()[1:-1]
-        #将temp_type改为'other'做为返回值
+        #3.将temp_type改为'other'做为返回值
         temp_type = 'other'
     #生成返回元组，返回
     return (module,module_name,temp_type)
@@ -62,9 +74,7 @@ def format_typestr(type_string):
     import re
     type_re = re.compile(r'\'.*\'')
     type_match = type_re.search(type_string)
-    #type_name = type_match.group().replace("'",'')
-    #type_name = type_match.group()[1:-2] #使用字符串切片方式 将两端的“'”删除-->2018.3.8 发现在win7+python364 32位环境下，在字符串结尾会多删除一个字符
-    type_name = type_match.group()[1:-1]
+    type_name = type_match.group()[1:-1] #使用字符串切片方式 将两端的“'”
     return type_name
 
 def get_help(module):
@@ -94,21 +104,9 @@ def write_help(module_name,in_help,filename):
     1.module_name：模块名称，str类型。
     2.in_help：获得的帮助内容，tuple类型。
     3.filename：保存文件名称，即Excel文件名称，str类型。
-    输出：True或False
+    输出：字符串，'Ok':写入成功；其它:写入不成功，字符串内容未不成功原因。
     """
     import openpyxl
-    """  #2018-3-9，屏蔽，移入函数format_module_name
-    module_name = str(module_name)
-    import re
-    temp_name = re.search(r'\'.*?\'',module_name)
-    if temp_name == None:
-        return 'Error:模块名无效，退出'
-    else:
-        tmp = temp_name.group()
-        tmp = tmp.replace('\'','')
-        module_name = tmp
-    """
-    #module_name = format_module_name(module_name)  #2018-3-9,调整作废
     from os.path import exists as fileexists
     if not fileexists(filename):
         wb = openpyxl.Workbook()
@@ -130,8 +128,8 @@ def help_to_excel(module,filename):
     输入：(1)module，指定的模块对象。(2)filename，写入帮助的Excel文件名。
     输出：str，“Ok”正常完成处理结束；其他，错误。
     """
-    if isinstance(module,(int,float,str,bool,list,tuple,dict,set)):
-        return "简单类型：int,float,str,bool,list,tuple,dict,set，没必要提取帮助！"
+    if isinstance(module,(int,float,str,bool,list,tuple,dict,set)):#简单类型：int,float,str,bool,list,tuple,dict,set
+        return "简单类型：{}，没必要提取帮助！".format(str(type(module)))
     #调用get_module_name函数，生产参数信息    
     module_info = get_module_name(module)    
     lines = get_help(module_info[0])
