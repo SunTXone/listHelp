@@ -58,8 +58,9 @@ def get_module_name(module):
         except AttributeError:   #实例没有“__name__”属性，直接使用实例类型
             re_result = re.search(re_name,str(type(module)))
             module_name = re_result.group()[1:-1]
-        #2.转换传入参数为类型 ,必须放在提取真实类型名后面
-        module = type(module)
+        #2.判断传入参数是否是实例，如果是实例则转换传入参数为类型 ,必须放在提取真实类型名后面
+        if  not hasattr(module,'__bases__'):
+            module= type(module)
         #3.将temp_type改为'other'做为返回值
         temp_type = 'other'
     #生成返回元组，返回
@@ -90,10 +91,16 @@ def get_help(module):
     content.append(header)
     for i in range(0,len(name_list)):
         x = name_list[i] # 变量x保存名称
-        y = str(type(getattr(module,x))) #变量y保存类型
-        #2018-3-1 增加格式化类型名称处理
-        y = format_typestr(y)
-        z = getattr(module,x).__doc__ #变量z保存帮助内容
+        try:  #针对 部分属性处理错误，目前无好的处理办法，直接将属性类型赋值为''
+            y = str(type(getattr(module,x,''))) #变量y保存类型,如果属性不存在则直接赋空字符串。
+            #2018-3-1 增加格式化类型名称处理
+            y = format_typestr(y)
+        except:
+            y = ''
+        #获取帮助的具体内容
+        z = getattr(module,x,'')  #获取属性，如果属性不存在则直接赋值为空字符串
+        if z != '':
+            z = getattr(module,x).__doc__ #变量z保存帮助内容
         content.append((x,y,z))
     return tuple(content)
 
